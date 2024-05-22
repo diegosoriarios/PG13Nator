@@ -1,15 +1,13 @@
 import moviepy.editor as mp
-import speech_recognition as sr 
 import os 
 from pydub import AudioSegment 
-from pydub.silence import split_on_silence 
-import queue    # For Python 2.x use 'import Queue as queue'
-import threading, time, random
-import vid2cleantxt
 import whisper_timestamped as whisper
 from pydub import AudioSegment
 import json
-from profanity_check import predict, predict_prob
+from profanity_check import predict_prob
+from moviepy.editor import VideoFileClip
+import moviepy.editor as mpe
+import shutil
 
 
 def generate_audio_from_video(video_path):
@@ -20,85 +18,9 @@ def generate_audio_from_video(video_path):
 
   return "audio_file.wav"
 
-def splice_audio_into_chunks(path):
-  song = AudioSegment.from_wav(path)
-
-  chunks = split_on_silence(song, 
-    # must be silent for at least 0.5 seconds 
-    # or 500 ms. adjust this value based on user 
-    # requirement. if the speaker stays silent for  
-    # longer, increase this value. else, decrease it. 
-    min_silence_len = 1000, 
-
-    # consider it silent if quieter than -16 dBFS 
-    # adjust this per requirement 
-    silence_thresh = -16,
-    keep_silence=200
-  ) 
-  
-  try: 
-    os.mkdir('audio_chunks') 
-  except(FileExistsError): 
-    pass
-  
-  return chunks
-
-def recognize_chunks(chunks):
-  fh = open("recognized.txt", "w+")
-
-  os.chdir("audio_chunks")
-
-  i = 0
-  
-  for chunk in chunks:
-    chunk_silent = AudioSegment.silent(duration = 10) 
-
-    audio_chunk = chunk_silent + chunk + chunk_silent
-    print("saving chunk{0}.wav".format(i)) 
-    audio_chunk.export("./chunk{0}.wav".format(i), bitrate ='192k', format ="wav") 
-    filename = 'chunk'+str(i)+'.wav'
-  
-    print("Processing chunk "+str(i)) 
-
-    # get the name of the newly created chunk 
-    # in the AUDIO_FILE variable for later use. 
-    file = filename 
-
-    # create a speech recognition object 
-    r = sr.Recognizer() 
-
-    # recognize the chunk 
-    with sr.AudioFile(file) as source: 
-        # remove this if it is not working 
-        # correctly. 
-        r.adjust_for_ambient_noise(source) 
-        audio_listened = r.listen(source) 
-
-    try: 
-      # try converting it to text 
-      rec = r.recognize_google(audio_listened) 
-      # write the output to the file. 
-      fh.write(rec+". ") 
-    except sr.UnknownValueError: 
-          print("Could not understand audio") 
-
-    except sr.RequestError as e: 
-        print("Could not request results. check your internet connection") 
-
-    i += 1
-
-    os.chdir('..')
-
-if __name__ == '__main__': 
-  video_path = "video.mp4"
-  # text_output_dir, metadata_output_dir = vid2cleantxt.transcribe.transcribe_dir(
-  #   input_dir="./",
-  #   model_id="openai/whisper-base.en",
-  #   chunk_length=30,
-  # )
-
+def transcribe_video(video):
   model = whisper.load_model("base")
-  audio = whisper.load_audio('video.mp4')
+  audio = whisper.load_audio(video)
 
   result = whisper.transcribe(model, audio, language="en")
   with open('data.txt', 'w') as f:
@@ -118,9 +40,12 @@ if __name__ == '__main__':
             "start": timestamp_start,
             "end": timestamp_end
           })
+  
+  return list_of_timestamps
 
+def splice_audio_into_chunks(video, list_of_timestamps):
   start = 0
-  audio_file = generate_audio_from_video(video_path)
+  audio_file = generate_audio_from_video(video)
   audio = AudioSegment.from_wav(audio_file)
   try: 
     os.mkdir('audio_chunks') 
@@ -148,6 +73,7 @@ if __name__ == '__main__':
   os.chdir('..')
   audio_chunk.export("last_audio_chunk.wav", format="wav")
 
+def combine_chunks_with_silence():
   dir_list = os.listdir('audio_chunks')
   print(sorted(dir_list))
   try: 
@@ -169,8 +95,7 @@ if __name__ == '__main__':
   
   os.chdir('..')
 
-  # TODO: COMBINE ALL COMBINED AUDIOS
-
+def combine_all_audio_chunks():
   dir_list = sorted(os.listdir('combined_audio'))
   os.chdir('combined_audio')
   print(dir_list)
@@ -187,31 +112,34 @@ if __name__ == '__main__':
   last_chunk = AudioSegment.from_file('last_audio_chunk.wav', format="wav")
   combined = combined + last_chunk
   combined.export("final_audio.wav", format="wav")
-  
 
+def remove_audio_from_video(video):
+  videoclip = VideoFileClip(video)
+  new_clip = videoclip.without_audio()
+  new_clip.write_videofile("no_audio_video.mp4")
 
+def add_new_audio_to_video():
+  no_audio_clip = mpe.VideoFileClip('no_audio_video.mp4')
+  new_audio = mpe.AudioFileClip('final_audio.wav')
+  final = no_audio_clip.set_audio(new_audio)
+  final.write_videofile("output.mp4")
 
+def remove_temp_files():
+  shutil.rmtree("audio_chunks")
+  shutil.rmtree("combined_audio")
+  os.remove("audio_file.wav")
+  os.remove("final_audio.wav")
+  os.remove("last_audio_chunk.wav")
+  os.remove("no_audio_video.mp4")
+  os.remove("data.txt")
 
-  """"
-  audio_file= "your_wav_file.wav"
-  audio = AudioSegment.from_wav(audio_file)
-  list_of_timestamps = [ 10, 20, 30, 40, 50 ,60, 70, 80, 90 ] #and so on in *seconds*
+if __name__ == '__main__': 
+  video_path = "video.mp4"
 
-  start = ""
-  for  idx,t in enumerate(list_of_timestamps):
-      #break loop if at last element of list
-      if idx == len(list_of_timestamps):
-          break
-
-      end = t * 1000 #pydub works in millisec
-      print("split at [ {}:{}] ms".format(start, end))
-      audio_chunk=audio[start:end]
-      audio_chunk.export( "audio_chunk_{}.wav".format(end), format="wav")
-
-      start = end * 1000 #pydub works in millisec
-
-  #audio_file = generate_audio_from_video(video_path)
-  #chunks = splice_audio_into_chunks(audio_file)
-  #recognize_chunks(chunks)
-  #silence_based_conversion(audio_file)
-  """
+  list_of_timestamps = transcribe_video(video_path)
+  splice_audio_into_chunks(video_path, list_of_timestamps)
+  combine_chunks_with_silence()
+  combine_all_audio_chunks()
+  remove_audio_from_video(video_path)
+  add_new_audio_to_video()
+  remove_temp_files()
