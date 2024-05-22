@@ -1,0 +1,15 @@
+Package                 Version
+----------------------- ------------
+alt-profanity-check     1.4.2
+moviepy                 1.0.3
+attrs                   23.2.0
+joblib                  1.4.2
+jsonlines               4.0.0
+numpy                   1.26.4
+openai-whisper          20231117
+psutil                  5.9.8
+pydub                   0.25.1
+scikit-learn            1.4.2
+scipy                   1.13.0
+whisper                 1.1.10
+whisper-timestamped     1.15.4
