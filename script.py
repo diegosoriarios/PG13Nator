@@ -6,9 +6,8 @@ from pydub import AudioSegment
 import json
 from profanity_check import predict_prob
 from moviepy.editor import VideoFileClip
-import moviepy.editor as mpe
 import shutil
-
+import argparse
 
 def generate_audio_from_video(video_path):
   video = mp.VideoFileClip(video_path)
@@ -119,8 +118,8 @@ def remove_audio_from_video(video):
   new_clip.write_videofile("no_audio_video.mp4")
 
 def add_new_audio_to_video():
-  no_audio_clip = mpe.VideoFileClip('no_audio_video.mp4')
-  new_audio = mpe.AudioFileClip('final_audio.wav')
+  no_audio_clip = mp.VideoFileClip('no_audio_video.mp4')
+  new_audio = mp.AudioFileClip('final_audio.wav')
   final = no_audio_clip.set_audio(new_audio)
   final.write_videofile("output.mp4")
 
@@ -133,8 +132,11 @@ def remove_temp_files():
   os.remove("no_audio_video.mp4")
   os.remove("data.txt")
 
-if __name__ == '__main__': 
-  video_path = "video.mp4"
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(description='video')
+  parser.add_argument('--video', action="store", dest='video', default=None)
+  args = parser.parse_args()
+  video_path = args.video
 
   list_of_timestamps = transcribe_video(video_path)
   splice_audio_into_chunks(video_path, list_of_timestamps)
