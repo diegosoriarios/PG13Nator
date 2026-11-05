@@ -1,7 +1,20 @@
 # PG13Nator
 
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
+![ffmpeg](https://img.shields.io/badge/requires-ffmpeg-green)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
+
 Censor profanity in movies: detects bad words in the audio track and mutes
 them, producing a clean copy of the video plus filtered subtitles.
+
+## Features
+
+- **Word-level detection** via whisper-timestamped transcription
+- **Fuzzy matching** catches obfuscations ("sh!t", "f*ck", "fuuuck", "biatch")
+- **No re-encoding** — audio is muted and stream-copied back, fast with zero quality loss
+- **Filtered subtitles** — output `.srt` with bad words replaced by `[censored]`
+- **Dry-run mode** — preview detected words and timestamps before touching the file
+- **Optional ML detection** — plug in `alt-profanity-check` as a second detector
 
 ## Why
 
