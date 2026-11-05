@@ -1,0 +1,5 @@
+# CPU-only torch keeps the install small; for GPU torch see https://pytorch.org
+whisper-timestamped>=1.15
+pydub>=0.25
+alt-profanity-check>=1.4
+rapidfuzz>=3.0
